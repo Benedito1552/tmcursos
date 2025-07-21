@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>App Vendas Completo</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; padding:0; }
+    nav { background: #333; padding: 10px; text-align: center; }
+    nav button {
+      margin: 0 5px; padding: 10px 20px;
+      color: white; background: #555; border: none;
+      cursor: pointer;
+    }
+    nav button:hover { background: #777; }
+    .pagina { display: none; padding: 20px; }
+    .pagina.active { display: block; }
+    form input, form select, form button { margin: 5px 0; padding: 6px; }
+    ul { list-style: none; padding-left: 0; }
+    ul li { margin: 5px 0; }
+    ul li button { margin-left: 10px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Login -->
+  <section id="login-page" class="pagina active">
+    <h2>Login</h2>
+    <form onsubmit="login(event)">
+      <input type="text" id="login-usuario" placeholder="Usuário" required />
+      <input type="password" id="login-senha" placeholder="Senha" required />
+      <button type="submit">Entrar</button>
+    </form>
+    <p>Não tem conta? <a href="#" onclick="mostrarPagina('cadastro-page')">Cadastre-se</a></p>
+  </section>
+
+  <!-- Cadastro -->
+  <section id="cadastro-page" class="pagina">
+    <h2>Cadastro de Usuário</h2>
+    <form onsubmit="cadastroUsuario(event)">
+      <input type="text" id="cadastro-usuario" placeholder="Usuário" required />
+      <input type="password" id="cadastro-senha" placeholder="Senha" required />
+      <button type="submit">Cadastrar</button>
+    </form>
+    <p><a href="#" onclick="mostrarPagina('login-page')">Voltar ao login</a></p>
+  </section>
+
+  <!-- Menu -->
+  <nav id="menu" class="hidden">
+    <button onclick="mostrarPagina('home-page')">Home</button>
+    <button onclick="mostrarPagina('vendas-page')">Vendas</button>
+    <button onclick="mostrarPagina('relatorio-page')">Relatório</button>
+    <button onclick="mostrarPagina('caixa-page')">Caixa</button>
+    <button onclick="mostrarPagina('despesas-page')">Despesas</button>
+    <button onclick="mostrarPagina('partilha-page')">Partilha de Lucros</button>
+    <button onclick="mostrarPagina('backup-page')">Backup</button>
+    <button onclick="logout()">Sair</button>
+  </nav>
+
+  <!-- Home / Cadastro de Vendedores -->
+  <section id="home-page" class="pagina">
+    <h2>Cadastro de Vendedores</h2>
+    <form onsubmit="cadastrarVendedor(event)">
+      <input type="text" id="nome-vendedor" placeholder="Nome do Vendedor" required />
+      <button type="submit">Cadastrar</button>
+    </form>
+    <ul id="lista-vendedores"></ul>
+  </section>
+
+  <!-- Vendas -->
+  <section id="vendas-page" class="pagina">
+    <h2>Cadastro de Vendas</h2>
+    <form onsubmit="adicionarVenda(event)">
+      <select id="venda-vendedor" required></select><br/>
+      <input type="number" id="quantidade-venda" placeholder="Quantidade" required min="1" /><br/>
+      <input type="number" id="preco-venda" placeholder="Preço Unitário" step="0.01" required min="0.01" /><br/>
+      <button type="submit">Salvar Venda</button>
+    </form>
+    <ul id="lista-vendas"></ul>
+  </section>
+
+  <!-- Relatório -->
+  <section id="relatorio-page" class="pagina">
+    <h2>Relatório de Vendas</h2>
+    <div id="relatorio-conteudo"></div>
+  </section>
+
+  <!-- Caixa -->
+  <section id="caixa-page" class="pagina">
+    <h2>Caixa</h2>
+    <p><strong>Total em Vendas:</strong> R$ <span id="total-vendas">0.00</span></p>
+  </section>
+
+  <!-- Despesas -->
+  <section id="despesas-page" class="pagina">
+    <h2>Despesas</h2>
+    <form onsubmit="adicionarDespesa(event)">
+      <input type="text" id="descricao-despesa" placeholder="Descrição" required /><br/>
+      <input type="date" id="data-despesa" required /><br/>
+      <input type="number" id="valor-despesa" placeholder="Valor" step="0.01" required min="0.01" /><br/>
+      <button type="submit">Adicionar</button>
+    </form>
+    <ul id="lista-despesas"></ul>
+  </section>
+
+  <!-- Partilha de Lucros -->
+  <section id="partilha-page" class="pagina">
+    <h2>Partilha de Lucros</h2>
+    <p><strong>Lucro Total:</strong> R$ <span id="lucro-total">0.00</span></p>
+    <ul>
+      <li>Benedito (25%): R$ <span id="lucro-benedito">0.00</span></li>
+      <li>José Roberto (25%): R$ <span id="lucro-jose">0.00</span></li>
+      <li>Pedro (50%): R$ <span id="lucro-pedro">0.00</span></li>
+    </ul>
+  </section>
+
+  <!-- Backup -->
+  <section id="backup-page" class="pagina">
+    <h2>Backup e Restauração</h2>
+    <button onclick="exportarBackup()">Exportar Backup</button><br/><br/>
+    <input type="file" id="importar-arquivo" onchange="importarBackup(event)" />
+    <p id="backup-msg" style="color: green;"></p>
+  </section>
+
+<script>
+  // Exibe a página desejada e oculta as outras
+  function mostrarPagina(id) {
+    document.querySelectorAll('.pagina').forEach(p => p.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+
+    // Mostrar ou esconder menu dependendo da página
+    if (id === 'login-page' || id === 'cadastro-page') {
+      document.getElementById('menu').classList.add('hidden');
+    } else {
+      document.getElementById('menu').classList.remove('hidden');
+    }
+
+    if(id === 'home-page') listarVendedores();
+    else if(id === 'vendas-page') {
+      preencherVendedoresSelect();
+      atualizarListaVendas();
+    }
+    else if(id === 'relatorio-page') gerarRelatorio();
+    else if(id === 'caixa-page') atualizarCaixa();
+    else if(id === 'despesas-page') carregarDespesas();
+    else if(id === 'partilha-page') calcularPartilhaLucros();
+    else if(id === 'backup-page') document.getElementById('backup-msg').textContent = '';
+  }
+
+  // Cadastro de usuário
+  function cadastroUsuario(event) {
+    event.preventDefault();
+    const usuario = document.getElementById('cadastro-usuario').value.trim();
+    const senha = document.getElementById('cadastro-senha').value;
+
+    if(localStorage.getItem('usuario_' + usuario)) {
+      alert('Usuário já existe!');
+      return;
+    }
+
+    localStorage.setItem('usuario_' + usuario, senha);
+    alert('Usuário cadastrado com sucesso!');
+    mostrarPagina('login-page');
+  }
+
+  // Login
+  function login(event) {
+    event.preventDefault();
+    const usuario = document.getElementById('login-usuario').value.trim();
+    const senha = document.getElementById('login-senha').value;
+
+    if(localStorage.getItem('usuario_' + usuario) === senha) {
+      document.getElementById('menu').classList.remove('hidden');
+      mostrarPagina('home-page');
+    } else {
+      alert('Usuário ou senha inválidos.');
+    }
+  }
+
+  // Logout
+  function logout() {
+    location.reload();
+  }
+
+  // Vendedores
+  function cadastrarVendedor(event) {
+    event.preventDefault();
+    const nome = document.getElementById('nome-vendedor').value.trim();
+    if(!nome) return alert('Informe o nome do vendedor.');
+
+    let vendedores = JSON.parse(localStorage.getItem('vendedores') || '[]');
+    if(vendedores.includes(nome)) {
+      alert('Vendedor já cadastrado.');
+      return;
+    }
+    vendedores.push(nome);
+    localStorage.setItem('vendedores', JSON.stringify(vendedores));
+    document.getElementById('nome-vendedor').value = '';
+    listarVendedores();
+  }
+
+  function listarVendedores() {
+    const ul = document.getElementById('lista-vendedores');
+    ul.innerHTML = '';
+    let vendedores = JSON.parse(localStorage.getItem('vendedores') || '[]');
+    vendedores.forEach((vendedor, i) => {
+      const li = document.createElement('li');
+      li.textContent = vendedor + ' ';
+      const btnDel = document.createElement('button');
+      btnDel.textContent = 'Excluir';
+      btnDel.onclick = () => {
+        if(confirm(`Excluir vendedor "${vendedor}"?`)) {
+          excluirVendedor(i);
+        }
+      };
+      li.appendChild(btnDel);
+      ul.appendChild(li);
+    });
+  }
+
+  function excluirVendedor(index) {
+    let vendedores = JSON.parse(localStorage.getItem('vendedores') || '[]');
+    const nome = vendedores[index];
+    vendedores.splice(index, 1);
+    localStorage.setItem('vendedores', JSON.stringify(vendedores));
+
+    // Excluir vendas do vendedor
+    let vendas = JSON.parse(localStorage.getItem('vendas') || '[]');
+    vendas = vendas.filter(v => v.nome !== nome);
+    localStorage.setItem('vendas', JSON.stringify(vendas));
+
+    listarVendedores();
+    atualizarListaVendas();
+  }
+
+  function preencherVendedoresSelect() {
+    const select = document.getElementById('venda-vendedor');
+    select.innerHTML = '';
+    let vendedores = JSON.parse(localStorage.getItem('vendedores') || '[]');
+    vendedores.forEach(vendedor => {
+      const option = document.createElement('option');
+      option.value = vendedor;
+      option.textContent = vendedor;
+      select.appendChild(option);
+    });
+  }
+
+  // Vendas
+  function adicionarVenda(event) {
+    event.preventDefault();
+    const nome = document.getElementById('venda-vendedor').value;
+    const quantidade = parseInt(document.getElementById('quantidade-venda').value);
+    const preco = parseFloat(document.getElementById('preco-venda').value);
+
+    if(!nome || quantidade <= 0 || preco <= 0) {
+      return alert('Preencha todos os campos corretamente.');
+    }
+
+    let vendas = JSON.parse(localStorage.getItem('vendas') || '[]');
+    vendas.push({ nome, quantidade, preco });
+    localStorage.setItem('vendas', JSON.stringify(vendas));
+
+    document.getElementById('quantidade-venda').value = '';
+    document.getElementById('preco-venda').value = '';
+
+    atualizarListaVendas();
+  }
+
+  function atualizarListaVendas() {
+    const ul = document.getElementById('lista-vendas');
+    ul.innerHTML = '';
+    let vendas = JSON.parse(localStorage.getItem('vendas') || '[]');
+    vendas.forEach((venda, i) => {
+      const li = document.createElement('li');
+      li.textContent = `${venda.nome} vendeu ${venda.quantidade} x R$${venda.preco.toFixed(2)} = R$${(venda.quantidade * venda.preco).toFixed(2)} `;
+      const btnDel = document.createElement('button');
+      btnDel.textContent = 'Excluir';
+      btnDel.onclick = () => {
+        if(confirm('Excluir esta venda?')) {
+          excluirVenda(i);
+        }
+      };
+      li.appendChild(btnDel);
+      ul.appendChild(li);
+    });
+  }
+
+  function excluirVenda(index) {
+    let vendas = JSON.parse(localStorage.getItem('vendas') || '[]');
+    vendas.splice(index, 1);
+    localStorage.setItem('vendas', JSON.stringify(vendas));
+    atualizarListaVendas();
+  }
+
+  // Relatório
+  function gerarRelatorio() {
+    const div = document.getElementById('relatorio-conteudo');
+    div.innerHTML = '';
+
+    let vendas = JSON.parse(localStorage.getItem('vendas') || '[]');
+    if(vendas.length === 0) {
+      div.textContent = 'Nenhuma venda registrada.';
+      return;
+    }
+
+    const resumo = {};
+    vendas.forEach(v => {
+      if(!resumo[v.nome]) resumo[v.nome] = { quantidade: 0, total: 0 };
+      resumo[v.nome].quantidade += v.quantidade;
+      resumo[v.nome].total += v.quantidade * v.preco;
+    });
+
+    const table = document.createElement('table');
+    table.border = 1;
+    const thead = document.createElement('thead');
+    const trHead = document.createElement('tr');
+    ['Vendedor', 'Quantidade', 'Valor Total (R$)'].forEach(txt => {
+      const th = document.createElement('th');
+      th.textContent = txt;
+      trHead.appendChild(th);
+    });
+    thead.appendChild(trHead);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    for(const vendedor in resumo) {
+      const tr = document.createElement('tr');
+      const tdNome = document.createElement('td');
+      tdNome.textContent = vendedor;
+      const tdQtd = document.createElement('td');
+      tdQtd.textContent = resumo[vendedor].quantidade;
+      const tdTotal = document.createElement('td');
+      tdTotal.textContent = resumo[vendedor].total.toFixed(2);
+      tr.appendChild(tdNome);
+      tr.appendChild(tdQtd);
+      tr.appendChild(tdTotal);
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    div.appendChild(table);
+  }
+
+  // Caixa
+  function atualizarCaixa() {
+    let vendas = JSON.parse(localStorage.getItem('vendas') || '[]');
+    const total = vendas.reduce((acc, v) => acc + v.quantidade * v.preco, 0);
+    document.getElementById('total-vendas').textContent = total.toFixed(2);
+  }
+
+  // Despesas
+  function adicionarDespesa(event) {
+    event.preventDefault();
+    const descricao = document.getElementById('descricao-despesa').value.trim();
+    const data = document.getElementById('data-despesa').value;
+    const valor = parseFloat(document.getElementById('valor-despesa').value);
+
+    if(!descricao || !data || isNaN(valor) || valor <= 0) {
+      return alert('Preencha todos os campos corretamente.');
+    }
+
+    let despesas = JSON.parse(localStorage.getItem('despesas') || '[]');
+    despesas.push({ descricao, data, valor });
+    localStorage.setItem('despesas', JSON.stringify(despesas));
+
+    document.getElementById('descricao-despesa').value = '';
+    document.getElementById('data-despesa').value = '';
+    document.getElementById('valor-despesa').value = '';
+
+    carregarDespesas();
+    calcularPartilhaLucros();
+  }
+
+  function carregarDespesas() {
+    const ul = document.getElementById('lista-despesas');
+    ul.innerHTML = '';
+    let despesas = JSON.parse(localStorage.getItem('despesas') || '[]');
+    if(despesas.length === 0) {
+      ul.innerHTML = '<li>Nenhuma despesa registrada.</li>';
+      return;
+    }
+    despesas.forEach((d, i) => {
+      const li = document.createElement('li');
+      li.textContent = `${d.data} - ${d.descricao}: R$${d.valor.toFixed(2)} `;
+      const btnDel = document.createElement('button');
+      btnDel.textContent = 'Excluir';
+      btnDel.onclick = () => {
+        if(confirm('Excluir esta despesa?')) {
+          excluirDespesa(i);
+        }
+      };
+      li.appendChild(btnDel);
+      ul.appendChild(li);
+    });
+  }
+
+  function excluirDespesa(index) {
+    let despesas = JSON.parse(localStorage.getItem('despesas') || '[]');
+    despesas.splice(index, 1);
+    localStorage.setItem('despesas', JSON.stringify(despesas));
+    carregarDespesas();
+    calcularPartilhaLucros();
+  }
+
+  // Partilha de lucros
+  function calcularPartilhaLucros() {
+    let vendas = JSON.parse(localStorage.getItem('vendas') || '[]');
+    let despesas = JSON.parse(localStorage.getItem('despesas') || '[]');
+
+    const totalVendas = vendas.reduce((acc, v) => acc + v.quantidade * v.preco, 0);
+    const totalDespesas = despesas.reduce((acc, d) => acc + d.valor, 0);
+
+    const lucro = totalVendas - totalDespesas;
+
+    document.getElementById('lucro-total').textContent = lucro.toFixed(2);
+    document.getElementById('lucro-benedito').textContent = (lucro * 0.25).toFixed(2);
+    document.getElementById('lucro-jose').textContent = (lucro * 0.25).toFixed(2);
+    document.getElementById('lucro-pedro').textContent = (lucro * 0.5).toFixed(2);
+  }
+
+  // Backup e Restauração
+  function exportarBackup() {
+    const dados = {
+      vendedores: localStorage.getItem('vendedores'),
+      vendas: localStorage.getItem('vendas'),
+      despesas: localStorage.getItem('despesas'),
+      usuarios: (function() {
+        const usuarios = {};
+        for(let i=0; i<localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if(key.startsWith('usuario_')) {
+            usuarios[key] = localStorage.getItem(key);
+          }
+        }
+        return usuarios;
+      })()
+    };
+    const jsonStr = JSON.stringify(dados, null, 2);
+    const blob = new Blob([jsonStr], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'backup_app_vendas.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importarBackup(event) {
+    const file = event.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const dados = JSON.parse(e.target.result);
+        if(dados.vendedores) localStorage.setItem('vendedores', dados.vendedores);
+        if(dados.vendas) localStorage.setItem('vendas', dados.vendas);
+        if(dados.despesas) localStorage.setItem('despesas', dados.despesas);
+        if(dados.usuarios) {
+          for(const key in dados.usuarios) {
+            localStorage.setItem(key, dados.usuarios[key]);
+          }
+        }
+        document.getElementById('backup-msg').textContent = 'Backup restaurado com sucesso!';
+        // Atualiza dados na interface, caso esteja em alguma página relacionada
+        listarVendedores();
+        atualizarListaVendas();
+        carregarDespesas();
+        calcularPartilhaLucros();
+      } catch(err) {
+        alert('Erro ao restaurar backup: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+</script>
+
+</body>
+</html>
